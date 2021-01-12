@@ -1,0 +1,3 @@
+[submodule "statstrade"]
+	path = statstrade
+	url = ../statstrade.assets.git
