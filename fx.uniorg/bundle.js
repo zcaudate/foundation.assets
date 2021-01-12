@@ -9911,21 +9911,419 @@ function stringify$3(options) {
   }
 }
 
+var spaces$1 = spaceSeparatedTokens.parse;
+var commas$1 = commaSeparatedTokens.parse;
+
+var factory_1$1 = factory$2;
+
+var own$7 = {}.hasOwnProperty;
+
+function factory$2(schema, defaultTagName, caseSensitive) {
+  var adjust = caseSensitive ? createAdjustMap$1(caseSensitive) : null;
+
+  return h
+
+  // Hyperscript compatible DSL for creating virtual hast trees.
+  function h(selector, properties) {
+    var node = hastUtilParseSelector(selector, defaultTagName);
+    var children = Array.prototype.slice.call(arguments, 2);
+    var name = node.tagName.toLowerCase();
+    var property;
+
+    node.tagName = adjust && own$7.call(adjust, name) ? adjust[name] : name;
+
+    if (properties && isChildren$1(properties, node)) {
+      children.unshift(properties);
+      properties = null;
+    }
+
+    if (properties) {
+      for (property in properties) {
+        addProperty(node.properties, property, properties[property]);
+      }
+    }
+
+    addChild$1(node.children, children);
+
+    if (node.tagName === 'template') {
+      node.content = {type: 'root', children: node.children};
+      node.children = [];
+    }
+
+    return node
+  }
+
+  function addProperty(properties, key, value) {
+    var info;
+    var property;
+    var result;
+
+    // Ignore nully and NaN values.
+    if (value === null || value === undefined || value !== value) {
+      return
+    }
+
+    info = find_1(schema, key);
+    property = info.property;
+    result = value;
+
+    // Handle list values.
+    if (typeof result === 'string') {
+      if (info.spaceSeparated) {
+        result = spaces$1(result);
+      } else if (info.commaSeparated) {
+        result = commas$1(result);
+      } else if (info.commaOrSpaceSeparated) {
+        result = spaces$1(commas$1(result).join(' '));
+      }
+    }
+
+    // Accept `object` on style.
+    if (property === 'style' && typeof value !== 'string') {
+      result = style$2(result);
+    }
+
+    // Class-names (which can be added both on the `selector` and here).
+    if (property === 'className' && properties.className) {
+      result = properties.className.concat(result);
+    }
+
+    properties[property] = parsePrimitives$1(info, property, result);
+  }
+}
+
+function isChildren$1(value, node) {
+  return (
+    typeof value === 'string' ||
+    'length' in value ||
+    isNode$1(node.tagName, value)
+  )
+}
+
+function isNode$1(tagName, value) {
+  var type = value.type;
+
+  if (tagName === 'input' || !type || typeof type !== 'string') {
+    return false
+  }
+
+  if (typeof value.children === 'object' && 'length' in value.children) {
+    return true
+  }
+
+  type = type.toLowerCase();
+
+  if (tagName === 'button') {
+    return (
+      type !== 'menu' &&
+      type !== 'submit' &&
+      type !== 'reset' &&
+      type !== 'button'
+    )
+  }
+
+  return 'value' in value
+}
+
+function addChild$1(nodes, value) {
+  var index;
+  var length;
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    nodes.push({type: 'text', value: String(value)});
+    return
+  }
+
+  if (typeof value === 'object' && 'length' in value) {
+    index = -1;
+    length = value.length;
+
+    while (++index < length) {
+      addChild$1(nodes, value[index]);
+    }
+
+    return
+  }
+
+  if (typeof value !== 'object' || !('type' in value)) {
+    throw new Error('Expected node, nodes, or string, got `' + value + '`')
+  }
+
+  nodes.push(value);
+}
+
+// Parse a (list of) primitives.
+function parsePrimitives$1(info, name, value) {
+  var index;
+  var length;
+  var result;
+
+  if (typeof value !== 'object' || !('length' in value)) {
+    return parsePrimitive$1(info, name, value)
+  }
+
+  length = value.length;
+  index = -1;
+  result = [];
+
+  while (++index < length) {
+    result[index] = parsePrimitive$1(info, name, value[index]);
+  }
+
+  return result
+}
+
+// Parse a single primitives.
+function parsePrimitive$1(info, name, value) {
+  var result = value;
+
+  if (info.number || info.positiveNumber) {
+    if (!isNaN(result) && result !== '') {
+      result = Number(result);
+    }
+  } else if (info.boolean || info.overloadedBoolean) {
+    // Accept `boolean` and `string`.
+    if (
+      typeof result === 'string' &&
+      (result === '' || normalize_1(value) === normalize_1(name))
+    ) {
+      result = true;
+    }
+  }
+
+  return result
+}
+
+function style$2(value) {
+  var result = [];
+  var key;
+
+  for (key in value) {
+    result.push([key, value[key]].join(': '));
+  }
+
+  return result.join('; ')
+}
+
+function createAdjustMap$1(values) {
+  var length = values.length;
+  var index = -1;
+  var result = {};
+  var value;
+
+  while (++index < length) {
+    value = values[index];
+    result[value.toLowerCase()] = value;
+  }
+
+  return result
+}
+
+var html$5 = factory_1$1(html_1, 'div');
+html$5.displayName = 'html';
+
+var html_1$3 = html$5;
+
+var hastscript$1 = html_1$3;
+
+var doctypes = {
+	"HTML 5": "html",
+	"HTML 4.01 Strict": "HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\"",
+	"HTML 4.01 Transitional": "HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"",
+	"HTML 4.01 Frameset": "HTML PUBLIC \"-//W3C//DTD HTML 4.01 Frameset//EN\" \"http://www.w3.org/TR/html4/frameset.dtd\"",
+	"HTML 3.2": "HTML PUBLIC \"-//W3C//DTD HTML 3.2 Final//EN\"",
+	"HTML 2.0": "HTML PUBLIC \"-//IETF//DTD HTML//EN\"",
+	"XHTML 1.0 Strict": "html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\"",
+	"XHTML 1.0 Transitional": "html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\"",
+	"XHTML 1.0 Frameset": "html PUBLIC \"-//W3C//DTD XHTML 1.0 Frameset//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd\"",
+	"XHTML 1.1": "html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\"",
+	"XHTML Basic 1.1": "html PUBLIC \"-//W3C//DTD XHTML Basic 1.1//EN\" \"http://www.w3.org/TR/xhtml-basic/xhtml-basic11.dtd\"",
+	"XHTML Basic 1.0": "html PUBLIC \"-//W3C//DTD XHTML Basic 1.0//EN\" \"http://www.w3.org/TR/xhtml-basic/xhtml-basic10.dtd\"",
+	"MathML 2.0": "math PUBLIC \"-//W3C//DTD MathML 2.0//EN\" \"http://www.w3.org/Math/DTD/mathml2/mathml2.dtd\"",
+	"MathML 1.01": "math SYSTEM \"http://www.w3.org/Math/DTD/mathml1/mathml.dtd\"",
+	"SVG 1.0": "svg PUBLIC \"-//W3C//DTD SVG 1.0//EN\" \"http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd\"",
+	"SVG 1.1 Full": "svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\"",
+	"SVG 1.1 Basic": "svg PUBLIC \"-//W3C//DTD SVG 1.1 Basic//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-basic.dtd\"",
+	"SVG 1.1 Tiny": "svg PUBLIC \"-//W3C//DTD SVG 1.1 Tiny//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd\""
+};
+
+var doctype$1 = getDoctype;
+getDoctype.all = doctypes;
+
+// Gather all doctypes as shortcodes.
+var shortcodes = gather();
+
+// Ensure proper non-versioned types work:
+shortcodes.h = shortcodes.h5;
+shortcodes.s = shortcodes['s1.1f'];
+shortcodes.m = shortcodes.m2;
+shortcodes.x = shortcodes['x1.1'];
+
+// Get a doctype from a name.
+function getDoctype(name) {
+  var key = cleanDoctype(name);
+  return shortcodes[key] || shortcodes['h' + key] || null
+}
+
+// Clean and simplify a doctype name.
+function cleanDoctype(name) {
+  return String(name)
+    .toLowerCase()
+    .replace(/([a-z]+|\d+)/, ' $1 ')
+    .replace(/\.0+(?!\d)/, '')
+    .replace(/\.01/, '')
+    .replace(/\.2/, '')
+    .replace(
+      /\b(xhtml|html|mathml|svg|full|basic|tiny|strict|frameset|basic)\b/g,
+      character
+    )
+    .replace(/ t(?:ransitional)?/, '')
+    .replace(/\s+/g, '')
+}
+
+// Get the first character of the second parameter.
+function character(_, value) {
+  return value.charAt(0)
+}
+
+// Clean all doctypes.
+function gather() {
+  var codes = {};
+  var key;
+
+  for (key in doctypes) {
+    codes[cleanDoctype(key)] = doctypes[key];
+  }
+
+  return codes
+}
+
+var rehypeDocument = document$1;
+
+function document$1(options) {
+  var settings = options || {};
+  var meta = cast(settings.meta);
+  var link = cast(settings.link);
+  var styles = cast(settings.style);
+  var css = cast(settings.css);
+  var scripts = cast(settings.script);
+  var js = cast(settings.js);
+
+  if (settings.responsive !== false) {
+    meta.unshift({
+      name: 'viewport',
+      content: 'width=device-width, initial-scale=1'
+    });
+  }
+
+  return transformer
+
+  function transformer(tree, file) {
+    var title = settings.title || file.stem;
+    var contents = tree.type === 'root' ? tree.children.concat() : [tree];
+    var head = [line(), hastscript$1('meta', {charset: 'utf-8'})];
+    var length;
+    var index;
+
+    if (contents.length !== 0) {
+      contents.unshift(line());
+    }
+
+    if (title) {
+      head.push(line(), hastscript$1('title', [title]));
+    }
+
+    length = meta.length;
+    index = -1;
+
+    while (++index < length) {
+      head.push(line(), hastscript$1('meta', meta[index]));
+    }
+
+    length = link.length;
+    index = -1;
+
+    while (++index < length) {
+      head.push(line(), hastscript$1('link', link[index]));
+    }
+
+    // Inject style tags before linked CSS
+    length = styles.length;
+    index = -1;
+
+    while (++index < length) {
+      head.push(line(), hastscript$1('style', styles[index]));
+    }
+
+    length = css.length;
+    index = -1;
+
+    while (++index < length) {
+      head.push(line(), hastscript$1('link', {rel: 'stylesheet', href: css[index]}));
+    }
+
+    head.push(line());
+
+    // Inject script tags before linked JS
+    length = scripts.length;
+    index = -1;
+
+    while (++index < length) {
+      contents.push(line(), hastscript$1('script', scripts[index]));
+    }
+
+    length = js.length;
+    index = -1;
+
+    while (++index < length) {
+      contents.push(line(), hastscript$1('script', {src: js[index]}));
+    }
+
+    contents.push(line());
+
+    return unistBuilder('root', [
+      unistBuilder('doctype', {name: doctype$1(settings.doctype || 5)}),
+      line(),
+      hastscript$1('html', {lang: settings.language || 'en'}, [
+        line(),
+        hastscript$1('head', head),
+        line(),
+        hastscript$1('body', contents),
+        line()
+      ]),
+      line()
+    ])
+  }
+}
+
+function line() {
+  return unistBuilder('text', '\n')
+}
+
+function cast(value) {
+  if (value === null || value === undefined) {
+    return []
+  }
+
+  return typeof value === 'string' || !('length' in value) ? [value] : value
+}
+
 function extract_ast(s) {
   return JSON.stringify(unified_1().use(lib$1).parse(s));
 }
+
 
 function extract_readme(s) {
   return unified_1()
     .use(lib$1)
     .use(lib$2)
+    .use(rehypeDocument)
     .use(rehypeRemark)
     .use(remarkStringify)
     .process(s);
 }
 
+
 const EXPORTS = { extract_ast, extract_readme };
 
-var main$1 = EXPORTS;
-
-module.exports = main$1;
+module.exports = EXPORTS;
